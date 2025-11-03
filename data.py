@@ -3,9 +3,10 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, DistributedSampler
 
 def get_dataloaders(data_dir, batch_size=64, distributed=False, num_workers=8, world_size=1, rank=0):
-    # train_dir = os.path.join(data_dir, "ILSVRC2012_img_train")
     train_dir = os.path.join(data_dir, "ILSVRC2012_img_trainset")
     val_dir = os.path.join(data_dir, "ILSVRC2012_img_val")
+    # train_dir = os.path.join(data_dir, "train_subset")
+    # val_dir = os.path.join(data_dir, "val_subset")
 
     train_tf = transforms.Compose([
         transforms.RandomResizedCrop(224),

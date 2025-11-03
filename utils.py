@@ -4,6 +4,14 @@ import torch.distributed as dist
 
 def is_distributed():
     return dist.is_available() and dist.is_initialized()
+
+def get_dynamic_clip(step, epoch, num_steps_epoch=50, clip_min=0.25, clip_max=3.0):
+    if epoch == 0:
+        clip_value = clip_min + (clip_max - clip_min) * (step / num_steps_epoch)
+        return min(clip_value, clip_max)
+    else:
+        return clip_max
+
     
 def cosine_tau_schedule(epoch, init_temp, min_temp, total_epochs):
     '''
@@ -14,7 +22,7 @@ def cosine_tau_schedule(epoch, init_temp, min_temp, total_epochs):
 
 def anneal_temperature(model, epoch, cfg):
     '''
-    Exponential annealing of Gumbel-softmax temperature along epochs
+    annealing of Gumbel-softmax temperature along epochs
     '''
     tau = cosine_tau_schedule(epoch, cfg["init_temp"], cfg["min_temp"], cfg["epochs"])
     for module in model.modules():
@@ -29,24 +37,16 @@ def compute_gate_entropy_loss(gates, lambda_entropy=0.1, eps=1e-8):
     entropy_loss = 0.0
     for gate in gates.values():
         # we add a small epsilon(eps) value to avoid log(0)
-        probs = gate["soft"] + eps
-        entropy = -(probs * torch.log(probs)).sum(dim=1).mean()
+        probs = gate["soft"].clamp(min=eps, max=1.0)
+
         uniform = torch.full_like(probs, 1.0 / probs.size(-1))
         kl = (probs * (torch.log(probs) - torch.log(uniform))).sum(dim=1).mean()
+        
+        entropy = -(probs * torch.log(probs)).sum(dim=1).mean()
         entropy_loss += entropy + 0.1 * kl
-    return -lambda_entropy * entropy_loss
-
-def compute_gate_usage(gates):
-    '''
-    Calculates % of samples that took each path (Conv / Transformer / Fusion).
-    '''
-    usage_stats = {}
-    for layer_name, gate in gates.items():
-        hard = gate["hard"]  # shape (B, num_choices)
-        counts = hard.sum(dim=0)
-        usage = (counts / hard.shape[0]) * 100
-        usage_stats[layer_name] = usage.detach().cpu().numpy().tolist()
-    return usage_stats
+        
+    return lambda_entropy * entropy_loss
+    
 
 def reduce_mean_gates_across_processes(local_mean_gates, total_samples):
     '''
@@ -90,10 +90,18 @@ def reduce_mean_gates_across_processes(local_mean_gates, total_samples):
                     counts[k] += n
             
             for k in sums:
-                global_mean_gates[k] = {
-                    "soft_mean": (sums[k]["soft_sum"] / counts[k]).tolist(),
-                    "hard_frac": (sums[k]["hard_sum"] / counts[k]).tolist()
-                }
+                denom = counts.get(k, 1)
+                if denom==0:
+                    global_mean_gates[k] = {
+                        "soft_mean" : [0.0] * sums[k]["soft_sum"].numel(),
+                        "hard_frac": [0.0] * sums[k]["hard_sum"].numel()
+                    }
+                else:
+                    global_mean_gates[k] = {
+                        "soft_mean": (sums[k]["soft_sum"] / counts[k]).tolist(),
+                        "hard_frac": (sums[k]["hard_sum"] / counts[k]).tolist()
+                    }
+
         else:
             global_mean_gates = None
     else:

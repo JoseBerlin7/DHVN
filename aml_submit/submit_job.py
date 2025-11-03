@@ -18,50 +18,26 @@ imagenet_input = {
         }
 
 # Command
-'''
 job = command(
     code=".",
     command=(
         "torchrun --nproc_per_node=4 "
         "train.py "
         "--data_path ${{inputs.data_path}} "
+        "--num_classes 1000 "
         "--base_dim 32 "
         "--epochs 5 "
         "--per_gpu_batch 8 "
-        "--lr 5e-4 "
+        "--lr 1e-4 "
         "--num_workers 4 "
         "--output_dir ./outputs"
-    ),
-    inputs=imagenet_input,
-    environment="azureml://registries/azureml/environments/AzureML-ACPT-pytorch-1.13-py38-cuda11.7-gpu/versions/10",
-    compute="NC64as-T4-V3-Cluster00",
-    display_name="ImageNet-1k-dhvn-ddp-training",
-    experiment_name="ImageNet-1k-DHVN-DDP-Experiment",
-    description="Distributed training of DHVNClassification on 4xT4 GPUs using DDP and AMP for 5 epochs on ImageNet-1k 2012",
-    resources=JobResourceConfiguration(
-        instance_count=1,
-        instance_type="Standard_NC64as_T4_v3"
-    ),
-)'''
 
-job = command(
-    code=".",
-    command=(
-        "torchrun --nproc_per_node=4 "
-        "train.py "
-        "--data_path ${{inputs.data_path}} "
-        "--base_dim 32 "
-        "--epochs 5 "
-        "--per_gpu_batch 8 "
-        "--lr 5e-4 "
-        "--num_workers 4 "
-        "--output_dir ./outputs"
     ),
     inputs=imagenet_input,
     environment="azureml://registries/azureml/environments/AzureML-ACPT-pytorch-1.13-py38-cuda11.7-gpu/versions/10",
     compute="NC64as-T4-V3-Cluster01",
-    display_name="test-ImageNet-10-subset-dhvn-ddp",
-    experiment_name="test-DHVN-DDP-Experiment",
+    display_name="ImageNet-1k-dhvn-ddp-training-AMP",
+    experiment_name="ImageNet-1k-DHVN-DDP-Experiment",
     description="Distributed training of DHVNClassification on 4xT4 GPUs using DDP and AMP for 5 epochs on ImageNet-1k 2012",
     resources=JobResourceConfiguration(
         instance_count=1,

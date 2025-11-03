@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 from .encoder import DHVNEncoder
 from .decoder import DHVNDecoder
@@ -22,6 +23,8 @@ class DHVNClassification(nn.Module):
         up_feats, up_gates = self.decoder(down_feats, classification=True)
 
         logits = self.fc(up_feats['u_s2'])
+
+        logits = torch.clamp(logits, -15, 15)
 
         if get_gates:
             return logits, down_gates, up_gates
