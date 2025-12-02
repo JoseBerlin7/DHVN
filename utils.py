@@ -5,12 +5,13 @@ import torch.distributed as dist
 def is_distributed():
     return dist.is_available() and dist.is_initialized()
 
-def get_dynamic_clip(step, epoch, num_steps_epoch=50, clip_min=0.25, clip_max=3.0):
-    if epoch == 0:
-        clip_value = clip_min + (clip_max - clip_min) * (step / num_steps_epoch)
-        return min(clip_value, clip_max)
-    else:
-        return clip_max
+def get_dynamic_clip(step, epoch, num_steps_epoch=50, clip_min=0.25, clip_max=3.0, ramp_epoch=5):
+    total_steps = num_steps_epoch * ramp_epoch
+    current_step = epoch * num_steps_epoch + step
+    progress = min(current_step / total_steps, 1.0)
+    clip_value = clip_min + (clip_max - clip_min) * progress
+    return clip_value
+    
 
     
 def cosine_tau_schedule(epoch, init_temp, min_temp, total_epochs):
@@ -127,10 +128,3 @@ def accumulate_gates(gate_dict, all_gates_sum):
         all_gates_sum[k]["count"] += bs
     
     return all_gates_sum
-
-
-
-
-
-
-
