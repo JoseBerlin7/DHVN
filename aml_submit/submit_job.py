@@ -3,9 +3,9 @@ from azure.ai.ml.entities import JobResourceConfiguration
 from azure.identity import DefaultAzureCredential
 
 # Configs
-subscription_id = "07fd1fc4-9d9b-4bbe-b68a-dd42bf1df26e"
-resource_group = "object_manipulation"
-workspace_name = "CV-workspace"
+subscription_id = ""
+resource_group = ""
+workspace_name = ""
 
 ml_client = MLClient(DefaultAzureCredential(), subscription_id, resource_group, workspace_name)
 
